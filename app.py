@@ -355,11 +355,24 @@ if (search_btn or query) and query.strip():
             with cols[i % 3]:
                 st.markdown('<div class="meme-card">', unsafe_allow_html=True)
 
-                # Show image
+                # # Show image
+                # try:
+                #     st.image(r["path"], use_container_width=True)
+                # except:
+                #     st.warning("Image not found")
                 try:
-                    st.image(r["path"], use_container_width=True)
-                except:
-                    st.warning("Image not found")
+                    # Extract just filename from whatever path was saved
+                    img_name = Path(r["path"]).name
+                    img_path = Path("memes") / img_name
+                    
+                    if img_path.exists():
+                        st.image(str(img_path), use_container_width=True)
+                    else:
+                        # Try with spaces replaced by dashes and other variations
+                        st.warning(f"❌ {img_name}")
+                        st.write("Looking for:", str(img_path))
+                except Exception as e:
+                    st.warning(f"Error: {e}")
 
                 d = r["data"]
                 title    = d.get("title", "Untitled") or "Untitled"
