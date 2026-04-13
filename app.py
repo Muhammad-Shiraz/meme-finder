@@ -24,7 +24,7 @@ try:
 except:
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-groq_client = Groq(api_key="GROQ_API_KEY")
+groq_client = Groq(api_key=GROQ_API_KEY)
 # st.sidebar.write("🔑 Key loaded:", GROQ_API_KEY[:8] + "...")
 # MEME_FOLDER = r"C:\Users\Muhammad Shiraz\OneDrive\Desktop\Hackathon\memes"
 MEME_FOLDER = "memes"
