@@ -12,7 +12,8 @@ from PIL import Image
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 import base64, io
-
+import time
+import pickle
 # =========================
 # CONFIG
 # =========================
@@ -23,8 +24,8 @@ try:
 except:
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-groq_client = Groq(api_key=GROQ_API_KEY)
-st.sidebar.write("🔑 Key loaded:", GROQ_API_KEY[:8] + "...")
+groq_client = Groq(api_key="GROQ_API_KEY")
+# st.sidebar.write("🔑 Key loaded:", GROQ_API_KEY[:8] + "...")
 # MEME_FOLDER = r"C:\Users\Muhammad Shiraz\OneDrive\Desktop\Hackathon\memes"
 MEME_FOLDER = "memes"
 
@@ -101,35 +102,49 @@ def safe_json_parse(text):
             "funniness": 5
         }
 
-
 def analyze_with_gemini(image_path):
-    try:
-        img = Image.open(image_path)
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-        buffer = io.BytesIO()
-        img.save(buffer, format="JPEG")
-        b64 = base64.b64encode(buffer.getvalue()).decode()
+    time.sleep(2)  # 2 seconds between each call
+    
+    for attempt in range(3):  # retry up to 3 times
+        try:
+            img = Image.open(image_path)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
 
-        response = groq_client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": PROMPT},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
-                ]
-            }],
-            max_tokens=500
-        )
-        return safe_json_parse(response.choices[0].message.content)
-    except Exception as e:
-        return {
-            "text_in_image": "", "visual_description": "",
-            "category": "general", "emotion": "unknown",
-            "keywords": [], "summary": "failed",
-            "title": "", "funniness": 5
-        }
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG")
+            b64 = base64.b64encode(buffer.getvalue()).decode()
+
+            response = groq_client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": PROMPT},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+                    ]
+                }],
+                max_tokens=500
+            )
+            return safe_json_parse(response.choices[0].message.content)
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Attempt {attempt+1} failed: {error_msg}")
+            
+            if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                wait = (attempt + 1) * 10  # wait 10s, 20s, 30s
+                print(f"Rate limited — waiting {wait}s...")
+                time.sleep(wait)
+            else:
+                time.sleep(3)
+
+    return {
+        "text_in_image": "", "visual_description": "",
+        "category": "general", "emotion": "unknown",
+        "keywords": [], "summary": "failed",
+        "title": "", "funniness": 5
+    }
 
 
 # =========================
@@ -155,6 +170,16 @@ def build_text(data):
 
 @st.cache_resource(show_spinner=False)
 def build_index(folder):
+    import pickle
+
+    # Load from disk if exists
+    if Path("meme_index.faiss").exists() and Path("meme_meta.pkl").exists():
+        st.info("Loading saved index...")
+        index = faiss.read_index("meme_index.faiss")
+        with open("meme_meta.pkl", "rb") as f:
+            metadata = pickle.load(f)
+        return index, metadata
+
     images = load_images(folder)
     vectors = []
     metadata = []
@@ -185,6 +210,11 @@ def build_index(folder):
     index = faiss.IndexFlatIP(vectors.shape[1])
     index.add(vectors)
 
+    # Save to disk
+    faiss.write_index(index, "meme_index.faiss")
+    with open("meme_meta.pkl", "wb") as f:
+        pickle.dump(metadata, f)
+
     return index, metadata
 
 
@@ -210,7 +240,7 @@ def search(query, index, metadata, k=6):
 # STREAMLIT UI
 # =========================
 
-st.set_page_config(page_title="Meme Finder 🐸", page_icon="🐸", layout="wide")
+st.set_page_config(page_title="Meme Finder", page_icon="🐸", layout="wide")
 
 st.markdown("""
 <style>
@@ -283,7 +313,7 @@ h1 { font-family: 'Bangers', cursive !important; font-size: 3.5rem !important;
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1>🐸 MEME FINDER</h1>', unsafe_allow_html=True)
+st.markdown('<h1>MEME FINDER</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">Search your meme stash with plain English</p>', unsafe_allow_html=True)
 
 # Build / load index
