@@ -326,12 +326,12 @@ if index is None:
 
 st.success(f"✅ {len(metadata)} memes indexed and ready!")
 # DEBUG
-import os
-st.write("Current dir:", os.getcwd())
-st.write("Files in current dir:", os.listdir("."))
-st.write("Memes folder exists:", Path("memes").exists())
-if metadata:
-    st.write("Saved path example:", metadata[0]["path"])
+# import os
+# st.write("Current dir:", os.getcwd())
+# st.write("Files in current dir:", os.listdir("."))
+# st.write("Memes folder exists:", Path("memes").exists())
+# if metadata:
+#     st.write("Saved path example:", metadata[0]["path"])
 
 # Search bar
 col1, col2 = st.columns([5, 1])
