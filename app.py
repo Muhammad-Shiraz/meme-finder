@@ -361,18 +361,26 @@ if (search_btn or query) and query.strip():
                 # except:
                 #     st.warning("Image not found")
                 try:
-                    # Extract just filename from whatever path was saved
                     img_name = Path(r["path"]).name
-                    img_path = Path("memes") / img_name
                     
-                    if img_path.exists():
-                        st.image(str(img_path), use_container_width=True)
-                    else:
-                        # Try with spaces replaced by dashes and other variations
+                    # Try multiple possible locations
+                    possible_paths = [
+                        Path("memes") / img_name,
+                        Path("/mount/src/meme-finder/memes") / img_name,
+                        Path(r["path"]),
+                    ]
+                    
+                    found = False
+                    for p in possible_paths:
+                        if p.exists():
+                            st.image(str(p), use_container_width=True)
+                            found = True
+                            break
+                    
+                    if not found:
                         st.warning(f"❌ {img_name}")
-                        st.write("Looking for:", str(img_path))
                 except Exception as e:
-                    st.warning(f"Error: {e}")
+                    st.warning("Image error")
 
                 d = r["data"]
                 title    = d.get("title", "Untitled") or "Untitled"
